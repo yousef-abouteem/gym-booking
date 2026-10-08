@@ -71,6 +71,7 @@ export default function GymPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [bookedIds, setBookedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function load() {
@@ -81,6 +82,20 @@ export default function GymPage() {
         ]);
         setGym(gymData.gym);
         setSessions(sessionsData.sessions);
+                // نجلب حجوزات العضو المؤكدة لنعرف أي حصص حجزها
+        if (user?.role === "member") {
+          const mine = await apiFetch<{ bookings: { session_id: string; status: string }[] }>(
+            "/me/bookings"
+          );
+          setBookedIds(
+            new Set(
+              mine.bookings.filter((b) => b.status === "confirmed").map((b) => b.session_id)
+            )
+          );
+        } else {
+          setBookedIds(new Set());
+        }
+
       } catch (err) {
         if (err instanceof ApiError && err.status === 404) {
           setError("Gym not found");
@@ -92,7 +107,7 @@ export default function GymPage() {
       }
     }
     load();
-  }, [slug, refreshKey]);
+    }, [slug, refreshKey, user]);
 
   async function handleBook(sessionId: string) {
     setBookingId(sessionId);
@@ -136,6 +151,7 @@ export default function GymPage() {
             const start = new Date(s.start_time);
             const end = new Date(s.end_time);
             const hasSpots = s.spots_left > 0;
+            const isBooked = bookedIds.has(s.id);
 
             return (
               <li key={s.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -157,7 +173,16 @@ export default function GymPage() {
                       </Link>
                     )}
 
-                    {user?.role === "member" && hasSpots && (
+                    {isBooked && (
+                      <Link
+                        to="/my-bookings"
+                        className="rounded-lg bg-green-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-700"
+                      >
+                        Booked ✓
+                      </Link>
+                    )}
+
+                    {user?.role === "member" && hasSpots && !isBooked && (
                       <button
                         onClick={() => handleBook(s.id)}
                         disabled={bookingId !== null}
@@ -166,6 +191,7 @@ export default function GymPage() {
                         {bookingId === s.id ? "Booking..." : "Book"}
                       </button>
                     )}
+                    
                   </div>
                 </div>
 
