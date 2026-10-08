@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { pool } from "../db";
 import jwt from "jsonwebtoken";
+import { requireAuth } from "../middleware/auth";
 
 const router = Router();
 
@@ -78,5 +79,19 @@ router.post("/login", async (req, res) => {
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
   });
 });
+
+
+router.get("/me", requireAuth, async (req, res) => {
+  const result = await pool.query(
+    "SELECT id, name, email, role, created_at FROM users WHERE id = $1",
+    [req.user!.id]
+  );
+  if (!result.rows[0]) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  res.json({ user: result.rows[0] });
+});
+
 
 export default router;
