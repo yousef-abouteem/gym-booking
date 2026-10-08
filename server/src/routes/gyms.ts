@@ -133,5 +133,81 @@ router.get("/:slug/class-types", async (req, res) => {
   res.json({ classTypes: result.rows });
 });
 
+const createSessionSchema = z
+  .object({
+    class_type_id: z.coerce.string().regex(/^\d+$/),
+    trainer_name: z.string().trim().max(100).optional(),
+    start_time: z.string().datetime({ offset: true }),
+    end_time: z.string().datetime({ offset: true }),
+    capacity: z.number().int().min(1).max(500).optional(),
+  })
+  .refine((d) => new Date(d.end_time) > new Date(d.start_time), {
+    message: "end_time must be after start_time",
+    path: ["end_time"],
+  })
+  .refine((d) => new Date(d.start_time) > new Date(), {
+    message: "start_time must be in the future",
+    path: ["start_time"],
+  });
+
+// إنشاء موعد حصة: لصاحب هذا النادي فقط
+router.post(
+  "/:slug/sessions",
+  requireAuth,
+  requireRole("gym_owner"),
+  requireGymOwner,
+  async (req, res) => {
+    const parsed = createSessionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+      return;
+    }
+
+    const { class_type_id, trainer_name, start_time, end_time, capacity } = parsed.data;
+
+    // التحقق الثاني: نوع الحصة يجب أن يتبع هذا النادي تحديدًا
+    const typeResult = await pool.query(
+      "SELECT default_capacity FROM class_types WHERE id = $1 AND gym_id = $2",
+      [class_type_id, res.locals.gymId]
+    );
+    if (!typeResult.rows[0]) {
+      res.status(404).json({ error: "Class type not found in this gym" });
+      return;
+    }
+
+    const result = await pool.query(
+      `INSERT INTO class_sessions (class_type_id, trainer_name, start_time, end_time, capacity)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, class_type_id, trainer_name, start_time, end_time, capacity`,
+      [
+        class_type_id,
+        trainer_name ?? null,
+        start_time,
+        end_time,
+        capacity ?? typeResult.rows[0].default_capacity,
+      ]
+    );
+    res.status(201).json({ session: result.rows[0] });
+  }
+);
+
+// الحصص القادمة لنادٍ معيّن مع عدد المقاعد المتبقية: متاحة للجميع
+router.get("/:slug/sessions", async (req, res) => {
+  const result = await pool.query(
+    `SELECT s.id, ct.name AS class_name, s.trainer_name,
+            s.start_time, s.end_time, s.capacity,
+            (s.capacity - COUNT(b.id))::int AS spots_left
+     FROM class_sessions s
+     JOIN class_types ct ON ct.id = s.class_type_id
+     JOIN gyms g ON g.id = ct.gym_id
+     LEFT JOIN bookings b ON b.session_id = s.id AND b.status = 'confirmed'
+     WHERE g.slug = $1 AND s.start_time > now()
+     GROUP BY s.id, ct.name
+     ORDER BY s.start_time`,
+    [req.params.slug]
+  );
+  res.json({ sessions: result.rows });
+});
+
 
 export default router;
