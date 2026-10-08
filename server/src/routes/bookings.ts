@@ -20,7 +20,7 @@ router.post("/sessions/:id/bookings", requireAuth, requireRole("member"), async 
 
     // نقفل صف الحصة: أي طلب حجز آخر لنفس الحصة ينتظر هنا حتى ننتهي
     const sessionResult = await client.query(
-      "SELECT capacity, start_time FROM class_sessions WHERE id = $1 FOR UPDATE",
+     "SELECT capacity, start_time FROM class_sessions WHERE id = $1 FOR UPDATE",
       [sessionId]
     );
     const session = sessionResult.rows[0];
