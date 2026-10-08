@@ -9,31 +9,42 @@ export default function App() {
   const { user, logout } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
-      <header className="border-b border-gray-200 bg-white">
-        <nav className="mx-auto flex max-w-3xl items-center justify-between p-4">
-          <Link to="/" className="text-xl font-bold">
+    <div className="min-h-screen bg-gray-50 text-gray-900 antialiased">
+      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur">
+        <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+          <Link to="/" className="flex items-center gap-2 text-xl font-extrabold tracking-tight">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-white">
+              G
+            </span>
             GymBook
           </Link>
 
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-5 text-sm font-medium">
             {user ? (
               <>
-              {user.role === "member" && (
-              <Link to="/my-bookings" className="text-gray-600 hover:text-gray-900">
-                My bookings
-              </Link>
-               )}
-                <span className="text-gray-600">Hi, {user.name}</span>
+                {user.role === "member" && (
+                  <Link to="/my-bookings" className="text-gray-600 transition hover:text-gray-900">
+                    My bookings
+                  </Link>
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700">
+                    {user.name[0].toUpperCase()}
+                  </span>
+                  <span className="hidden text-gray-700 sm:inline">{user.name}</span>
+                </div>
                 <button
                   onClick={logout}
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-100"
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-gray-700 transition hover:bg-gray-100"
                 >
                   Log out
                 </button>
               </>
             ) : (
-              <Link to="/login" className="rounded-lg bg-gray-900 px-3 py-1.5 text-white hover:bg-gray-700">
+              <Link
+                to="/login"
+                className="rounded-lg bg-brand-500 px-4 py-2 text-white transition hover:bg-brand-600"
+              >
                 Log in
               </Link>
             )}
@@ -41,13 +52,13 @@ export default function App() {
         </nav>
       </header>
 
-      <main className="mx-auto max-w-3xl p-6">
+      <main className="mx-auto max-w-5xl px-6 py-10">
         <Routes>
           <Route path="/" element={<GymsPage />} />
           <Route path="/gyms/:slug" element={<GymPage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="*" element={<p>Page not found</p>} />
           <Route path="/my-bookings" element={<MyBookingsPage />} />
+          <Route path="*" element={<p>Page not found</p>} />
         </Routes>
       </main>
     </div>
