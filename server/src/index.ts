@@ -2,10 +2,12 @@ import "dotenv/config";
 import express from "express";
 import { pool } from "./db";
 import authRouter from "./routes/auth";
+import gymsRouter from "./routes/gyms";
 
 const app = express();
 app.use(express.json());
 app.use("/api/auth", authRouter);
+app.use("/api/gyms", gymsRouter);
 
 app.get("/api/health", async (_req, res) => {
   const result = await pool.query("SELECT NOW()");
