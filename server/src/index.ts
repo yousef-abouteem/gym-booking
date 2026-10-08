@@ -1,10 +1,13 @@
+import "dotenv/config";
 import express from "express";
+import { pool } from "./db";
 
 const app = express();
 app.use(express.json());
 
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok" });
+app.get("/api/health", async (_req, res) => {
+  const result = await pool.query("SELECT NOW()");
+  res.json({ status: "ok", dbTime: result.rows[0].now });
 });
 
 const PORT = process.env.PORT || 4000;
