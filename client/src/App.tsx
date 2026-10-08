@@ -3,6 +3,7 @@ import { useAuth } from "./context/AuthContext";
 import GymsPage from "./pages/GymsPage";
 import GymPage from "./pages/GymPage";
 import LoginPage from "./pages/LoginPage";
+import MyBookingsPage from "./pages/MyBookingsPage";
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -18,6 +19,11 @@ export default function App() {
           <div className="flex items-center gap-4 text-sm">
             {user ? (
               <>
+              {user.role === "member" && (
+              <Link to="/my-bookings" className="text-gray-600 hover:text-gray-900">
+                My bookings
+              </Link>
+               )}
                 <span className="text-gray-600">Hi, {user.name}</span>
                 <button
                   onClick={logout}
@@ -41,6 +47,7 @@ export default function App() {
           <Route path="/gyms/:slug" element={<GymPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="*" element={<p>Page not found</p>} />
+          <Route path="/my-bookings" element={<MyBookingsPage />} />
         </Routes>
       </main>
     </div>
