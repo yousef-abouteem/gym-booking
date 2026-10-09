@@ -210,4 +210,42 @@ router.get("/:slug/sessions", async (req, res) => {
 });
 
 
+// قائمة المحجوزين في حصة: لصاحب هذا النادي فقط
+router.get(
+  "/:slug/sessions/:id/bookings",
+  requireAuth,
+  requireRole("gym_owner"),
+  requireGymOwner,
+  async (req, res) => {
+    const sessionId = req.params.id;
+    if (typeof sessionId !== "string" || !/^\d+$/.test(sessionId)) {
+      res.status(400).json({ error: "Invalid session id" });
+      return;
+    }
+
+    // نتأكد أن الحصة تتبع هذا النادي، وإلا يقدر المالك يرى محجوزي نادٍ آخر
+    const sessionCheck = await pool.query(
+      `SELECT 1 FROM class_sessions s
+       JOIN class_types ct ON ct.id = s.class_type_id
+       WHERE s.id = $1 AND ct.gym_id = $2`,
+      [sessionId, res.locals.gymId]
+    );
+    if (!sessionCheck.rows[0]) {
+      res.status(404).json({ error: "Session not found in this gym" });
+      return;
+    }
+
+    const result = await pool.query(
+      `SELECT b.id, u.name, u.email, b.created_at
+       FROM bookings b
+       JOIN users u ON u.id = b.user_id
+       WHERE b.session_id = $1 AND b.status = 'confirmed'
+       ORDER BY b.created_at`,
+      [sessionId]
+    );
+    res.json({ attendees: result.rows });
+  }
+);
+
+
 export default router;

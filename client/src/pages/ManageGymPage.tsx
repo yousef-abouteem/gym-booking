@@ -24,6 +24,8 @@ type Session = {
   spots_left: number;
 };
 
+type Attendee = { id: string; name: string; email: string; created_at: string };
+
 const sessionFmt = new Intl.DateTimeFormat(undefined, {
   weekday: "short",
   day: "numeric",
@@ -66,6 +68,11 @@ export default function ManageGymPage() {
   const [sCapacity, setSCapacity] = useState("");
   const [sError, setSError] = useState<string | null>(null);
   const [sSubmitting, setSSubmitting] = useState(false);
+
+    // قائمة المحجوزين: تُجلب فقط عند فتحها، وتُحفظ حتى لا تُجلب مرتين
+  const [openSessionId, setOpenSessionId] = useState<string | null>(null);
+  const [attendees, setAttendees] = useState<Record<string, Attendee[]>>({});
+  const [attendeesLoading, setAttendeesLoading] = useState(false);
 
   useEffect(() => {
     if (user?.role !== "gym_owner") return;
@@ -146,6 +153,25 @@ export default function ManageGymPage() {
       setSError(err instanceof Error ? err.message : "Could not schedule class");
     } finally {
       setSSubmitting(false);
+    }
+
+  }
+    async function toggleAttendees(sessionId: string) {
+    if (openSessionId === sessionId) {
+      setOpenSessionId(null);
+      return;
+    }
+    setOpenSessionId(sessionId);
+    if (attendees[sessionId]) return;
+
+    setAttendeesLoading(true);
+    try {
+      const data = await apiFetch<{ attendees: Attendee[] }>(
+        `/gyms/${slug}/sessions/${sessionId}/bookings`
+      );
+      setAttendees((prev) => ({ ...prev, [sessionId]: data.attendees }));
+    } finally {
+      setAttendeesLoading(false);
     }
   }
 
@@ -366,28 +392,57 @@ export default function ManageGymPage() {
             {sessions.length === 0 ? (
               <p className="text-sm text-gray-500">Nothing scheduled yet.</p>
             ) : (
-              <ul className="space-y-2">
+                           <ul className="space-y-2">
                 {sessions.map((s) => {
                   const booked = Math.max(0, s.capacity - s.spots_left);
+                  const isOpen = openSessionId === s.id;
+                  const list = attendees[s.id];
+
                   return (
-                    <li
-                      key={s.id}
-                      className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white p-4"
-                    >
-                      <div>
-                        <p className="font-semibold">
-                          {s.class_name}
-                          {s.trainer_name && (
-                            <span className="font-normal text-gray-500"> · {s.trainer_name}</span>
-                          )}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {sessionFmt.format(new Date(s.start_time))}
-                        </p>
+                    <li key={s.id} className="rounded-xl border border-gray-200 bg-white">
+                      <div className="flex items-center justify-between gap-4 p-4">
+                        <div>
+                          <p className="font-semibold">
+                            {s.class_name}
+                            {s.trainer_name && (
+                              <span className="font-normal text-gray-500"> · {s.trainer_name}</span>
+                            )}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {sessionFmt.format(new Date(s.start_time))}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => toggleAttendees(s.id)}
+                          className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
+                        >
+                          {booked} / {s.capacity} booked {isOpen ? "▲" : "▼"}
+                        </button>
                       </div>
-                      <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700">
-                        {booked} / {s.capacity} booked
-                      </span>
+
+                      {isOpen && (
+                        <div className="border-t border-gray-100 px-4 py-3">
+                          {!list && attendeesLoading ? (
+                            <p className="text-sm text-gray-500">Loading attendees...</p>
+                          ) : !list || list.length === 0 ? (
+                            <p className="text-sm text-gray-500">No bookings yet.</p>
+                          ) : (
+                            <ul className="divide-y divide-gray-100">
+                              {list.map((a) => (
+                                <li key={a.id} className="flex items-center gap-3 py-2">
+                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700">
+                                    {a.name[0].toUpperCase()}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium">{a.name}</p>
+                                    <p className="truncate text-xs text-gray-500">{a.email}</p>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
                     </li>
                   );
                 })}

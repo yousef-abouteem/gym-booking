@@ -30,6 +30,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => localStorage.removeItem("token")) // توكن منتهي أو غير صالح
       .finally(() => setLoading(false));
   }, []);
+  
+    // مزامنة التبويبات: عند تسجيل الدخول أو الخروج في تبويب آخر، نحدّث هذا التبويب
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key !== "token") return;
+      if (!e.newValue) {
+        setUser(null);
+        return;
+      }
+      apiFetch<{ user: User }>("/auth/me")
+        .then((data) => setUser(data.user))
+        .catch(() => setUser(null));
+    }
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   async function login(email: string, password: string) {
     const data = await apiFetch<{ token: string; user: User }>("/auth/login", {
