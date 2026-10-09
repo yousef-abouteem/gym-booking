@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import MyBookingsPage from "./pages/MyBookingsPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
+import ManageGymPage from "./pages/ManageGymPage";
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -78,6 +79,7 @@ export default function App() {
           <Route path="*" element={<p>Page not found</p>} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/dashboard/gyms/:slug" element={<ManageGymPage />} />
         </Routes>
       </main>
     </div>
