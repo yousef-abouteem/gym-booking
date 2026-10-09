@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import { gradientFor, initials } from "../lib/gymStyle";
+import PinIcon from "../components/PinIcon";
 
 type Gym = {
   id: string;
@@ -8,40 +10,6 @@ type Gym = {
   city: string;
   description: string | null;
 };
-
-// كل نادٍ يأخذ تدرجًا لونيًا ثابتًا حسب رقمه
-const gradients = [
-  "from-orange-500 to-rose-500",
-  "from-sky-500 to-indigo-600",
-  "from-emerald-500 to-teal-600",
-  "from-violet-500 to-fuchsia-500",
-  "from-amber-500 to-orange-600",
-];
-
-function gradientFor(id: string) {
-  return gradients[Number(id) % gradients.length];
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
-function PinIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-      <path
-        fillRule="evenodd"
-        d="M10 18s6-5.33 6-10A6 6 0 0 0 4 8c0 4.67 6 10 6 10Zm0-8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
 
 export default function GymsPage() {
   const [gyms, setGyms] = useState<Gym[]>([]);

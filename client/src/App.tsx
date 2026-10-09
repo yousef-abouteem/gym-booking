@@ -4,6 +4,7 @@ import GymsPage from "./pages/GymsPage";
 import GymPage from "./pages/GymPage";
 import LoginPage from "./pages/LoginPage";
 import MyBookingsPage from "./pages/MyBookingsPage";
+import RegisterPage from "./pages/RegisterPage";
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -41,12 +42,19 @@ export default function App() {
                 </button>
               </>
             ) : (
-              <Link
-                to="/login"
-                className="rounded-lg bg-brand-500 px-4 py-2 text-white transition hover:bg-brand-600"
-              >
-                Log in
-              </Link>
+
+              <>
+                <Link to="/login" className="text-gray-600 transition hover:text-gray-900">
+                  Log in
+                </Link>
+                <Link
+                  to="/register"
+                  className="rounded-lg bg-brand-500 px-4 py-2 text-white transition hover:bg-brand-600"
+                >
+                  Sign up
+                </Link>
+              </>
+              
             )}
           </div>
         </nav>
@@ -59,6 +67,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/my-bookings" element={<MyBookingsPage />} />
           <Route path="*" element={<p>Page not found</p>} />
+          <Route path="/register" element={<RegisterPage />} />
         </Routes>
       </main>
     </div>

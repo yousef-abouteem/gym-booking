@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import { ApiError, apiFetch } from "../lib/api";
+import { gradientFor } from "../lib/gymStyle";
+import PinIcon from "../components/PinIcon";
 
 type Gym = {
   id: string;
@@ -27,34 +29,51 @@ type Feedback = {
   text: string;
 };
 
-// تنسيق التاريخ والوقت حسب لغة المتصفح وتوقيته
-const dateFmt = new Intl.DateTimeFormat(undefined, {
-  weekday: "short",
+const dayFmt = new Intl.DateTimeFormat(undefined, {
+  weekday: "long",
   day: "numeric",
-  month: "short",
+  month: "long",
 });
 const timeFmt = new Intl.DateTimeFormat(undefined, {
   hour: "numeric",
   minute: "2-digit",
 });
 
-function SpotsBadge({ spots }: { spots: number }) {
-  if (spots <= 0) {
-    return (
-      <span className="rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700">
-        Full
-      </span>
-    );
+// نجمع الحصص حسب اليوم، مع الحفاظ على ترتيبها الزمني
+function groupByDay(sessions: Session[]) {
+  const groups = new Map<string, Session[]>();
+  for (const s of sessions) {
+    const key = new Date(s.start_time).toDateString();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(s);
   }
-  const low = spots <= 3;
+  return [...groups.values()];
+}
+
+function CapacityBar({ capacity, spotsLeft }: { capacity: number; spotsLeft: number }) {
+  const booked = Math.min(capacity, Math.max(0, capacity - spotsLeft));
+  const pct = (booked / capacity) * 100;
+  const full = spotsLeft <= 0;
+  const low = !full && spotsLeft <= 3;
+
   return (
-    <span
-      className={`rounded-full px-3 py-1 text-sm font-medium ${
-        low ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-700"
-      }`}
-    >
-      {spots} {spots === 1 ? "spot" : "spots"} left
-    </span>
+    <div className="mt-3">
+      <div className="h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-gray-100">
+        <div
+          className={`h-full rounded-full transition-all ${
+            full ? "bg-red-500" : low ? "bg-amber-500" : "bg-emerald-500"
+          }`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p
+        className={`mt-1.5 text-xs font-medium ${
+          full ? "text-red-600" : low ? "text-amber-700" : "text-gray-500"
+        }`}
+      >
+        {full ? "Class is full" : `${spotsLeft} of ${capacity} spots left`}
+      </p>
+    </div>
   );
 }
 
@@ -67,7 +86,6 @@ export default function GymPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // كل ما زاد هذا الرقم، تُجلب الحصص من جديد
   const [refreshKey, setRefreshKey] = useState(0);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -82,7 +100,7 @@ export default function GymPage() {
         ]);
         setGym(gymData.gym);
         setSessions(sessionsData.sessions);
-                // نجلب حجوزات العضو المؤكدة لنعرف أي حصص حجزها
+
         if (user?.role === "member") {
           const mine = await apiFetch<{ bookings: { session_id: string; status: string }[] }>(
             "/me/bookings"
@@ -95,7 +113,6 @@ export default function GymPage() {
         } else {
           setBookedIds(new Set());
         }
-
       } catch (err) {
         if (err instanceof ApiError && err.status === 404) {
           setError("Gym not found");
@@ -107,14 +124,14 @@ export default function GymPage() {
       }
     }
     load();
-    }, [slug, refreshKey, user]);
+  }, [slug, refreshKey, user]);
 
   async function handleBook(sessionId: string) {
     setBookingId(sessionId);
     setFeedback(null);
     try {
       await apiFetch(`/sessions/${sessionId}/bookings`, { method: "POST" });
-      setFeedback({ sessionId, type: "success", text: "Booked! See you there." });
+      setFeedback({ sessionId, type: "success", text: "You're in! See you there." });
     } catch (err) {
       setFeedback({
         sessionId,
@@ -123,91 +140,144 @@ export default function GymPage() {
       });
     } finally {
       setBookingId(null);
-      // نجلب الأرقام الحقيقية من الخادم، سواء نجح الحجز أو فشل
       setRefreshKey((k) => k + 1);
     }
   }
 
-  if (loading) return <p>Loading...</p>;
-  if (error || !gym) return <p className="text-red-600">{error ?? "Gym not found"}</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-48 animate-pulse rounded-3xl bg-gray-200" />
+        <div className="h-24 animate-pulse rounded-2xl bg-gray-200" />
+        <div className="h-24 animate-pulse rounded-2xl bg-gray-200" />
+      </div>
+    );
+  }
+
+  if (error || !gym) {
+    return (
+      <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
+        <p className="text-lg font-semibold">{error ?? "Gym not found"}</p>
+        <Link to="/" className="mt-4 inline-block font-medium text-brand-600 hover:underline">
+          ← Back to all gyms
+        </Link>
+      </div>
+    );
+  }
+
+  const days = groupByDay(sessions);
 
   return (
     <div>
-      <Link to="/" className="text-sm text-blue-600 hover:underline">
-        ← All gyms
-      </Link>
+      <section
+        className={`relative mb-10 overflow-hidden rounded-3xl bg-linear-to-br ${gradientFor(gym.id)} p-8 text-white shadow-lg sm:p-10`}
+      >
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative">
+          <Link to="/" className="text-sm font-medium text-white/80 transition hover:text-white">
+            ← All gyms
+          </Link>
+          <h1 className="mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl">{gym.name}</h1>
+          <p className="mt-2 flex items-center gap-1 text-white/90">
+            <PinIcon />
+            {gym.city}
+          </p>
+          {gym.description && <p className="mt-4 max-w-xl text-lg text-white/90">{gym.description}</p>}
+        </div>
+      </section>
 
-      <h1 className="mt-4 text-3xl font-bold">{gym.name}</h1>
-      <p className="text-gray-500">{gym.city}</p>
-      {gym.description && <p className="mt-2 text-gray-700">{gym.description}</p>}
+      <h2 className="mb-6 text-2xl font-bold tracking-tight">Upcoming classes</h2>
 
-      <h2 className="mb-4 mt-8 text-xl font-semibold">Upcoming classes</h2>
-
-      {sessions.length === 0 ? (
-        <p className="text-gray-500">No upcoming classes.</p>
+      {days.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-500">
+          No upcoming classes yet. Check back soon!
+        </div>
       ) : (
-        <ul className="space-y-3">
-          {sessions.map((s) => {
-            const start = new Date(s.start_time);
-            const end = new Date(s.end_time);
-            const hasSpots = s.spots_left > 0;
-            const isBooked = bookedIds.has(s.id);
+        <div className="space-y-8">
+          {days.map((daySessions) => (
+            <section key={daySessions[0].id}>
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+                {dayFmt.format(new Date(daySessions[0].start_time))}
+              </h3>
 
-            return (
-              <li key={s.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-semibold">{s.class_name}</p>
-                    <p className="text-sm text-gray-500">
-                      {dateFmt.format(start)} · {timeFmt.format(start)} – {timeFmt.format(end)}
-                      {s.trainer_name && ` · ${s.trainer_name}`}
-                    </p>
-                  </div>
+              <ul className="space-y-3">
+                {daySessions.map((s) => {
+                  const start = new Date(s.start_time);
+                  const end = new Date(s.end_time);
+                  const minutes = Math.round((end.getTime() - start.getTime()) / 60000);
+                  const hasSpots = s.spots_left > 0;
+                  const isBooked = bookedIds.has(s.id);
 
-                  <div className="flex shrink-0 items-center gap-3">
-                    <SpotsBadge spots={s.spots_left} />
+                  return (
+                    <li
+                      key={s.id}
+                      className={`rounded-2xl border bg-white p-5 shadow-sm transition hover:shadow-md ${
+                        isBooked ? "border-emerald-300 ring-1 ring-emerald-200" : "border-gray-200"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                        <div className="w-24 shrink-0">
+                          <p className="text-lg font-bold">{timeFmt.format(start)}</p>
+                          <p className="text-sm text-gray-500">{minutes} min</p>
+                        </div>
 
-                    {!user && hasSpots && (
-                      <Link to="/login" className="text-sm font-medium text-blue-600 hover:underline">
-                        Log in to book
-                      </Link>
-                    )}
+                        <div className="flex-1">
+                          <p className="text-lg font-semibold">{s.class_name}</p>
+                          {s.trainer_name && (
+                            <p className="text-sm text-gray-500">with {s.trainer_name}</p>
+                          )}
+                          <CapacityBar capacity={s.capacity} spotsLeft={s.spots_left} />
+                        </div>
 
-                    {isBooked && (
-                      <Link
-                        to="/my-bookings"
-                        className="rounded-lg bg-green-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-700"
-                      >
-                        Booked ✓
-                      </Link>
-                    )}
+                        <div className="shrink-0">
+                          {isBooked ? (
+                            <Link
+                              to="/my-bookings"
+                              className="inline-block rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                            >
+                              Booked ✓
+                            </Link>
+                          ) : !hasSpots ? (
+                            <span className="inline-block cursor-not-allowed rounded-xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-400">
+                              Full
+                            </span>
+                          ) : !user ? (
+                            <Link
+                              to="/login"
+                              className="inline-block rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                            >
+                              Log in to book
+                            </Link>
+                          ) : user.role === "member" ? (
+                            <button
+                              onClick={() => handleBook(s.id)}
+                              disabled={bookingId !== null}
+                              className="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-50"
+                            >
+                              {bookingId === s.id ? "Booking..." : "Book now"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
 
-                    {user?.role === "member" && hasSpots && !isBooked && (
-                      <button
-                        onClick={() => handleBook(s.id)}
-                        disabled={bookingId !== null}
-                        className="rounded-lg bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-                      >
-                        {bookingId === s.id ? "Booking..." : "Book"}
-                      </button>
-                    )}
-                    
-                  </div>
-                </div>
-
-                {feedback?.sessionId === s.id && (
-                  <p
-                    className={`mt-3 text-sm ${
-                      feedback.type === "success" ? "text-green-700" : "text-red-600"
-                    }`}
-                  >
-                    {feedback.text}
-                  </p>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+                      {feedback?.sessionId === s.id && (
+                        <p
+                          className={`mt-4 rounded-lg px-3 py-2 text-sm font-medium ${
+                            feedback.type === "success"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-red-50 text-red-700"
+                          }`}
+                        >
+                          {feedback.text}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   );
