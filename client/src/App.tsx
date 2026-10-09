@@ -5,6 +5,7 @@ import GymPage from "./pages/GymPage";
 import LoginPage from "./pages/LoginPage";
 import MyBookingsPage from "./pages/MyBookingsPage";
 import RegisterPage from "./pages/RegisterPage";
+import DashboardPage from "./pages/DashboardPage";
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -28,6 +29,14 @@ export default function App() {
                     My bookings
                   </Link>
                 )}
+      
+                {user.role === "gym_owner" && (
+                  <Link to="/dashboard" className="text-gray-600 transition hover:text-gray-900">
+                    Dashboard
+                  </Link>
+                )}
+
+
                 <div className="flex items-center gap-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700">
                     {user.name[0].toUpperCase()}
@@ -54,7 +63,7 @@ export default function App() {
                   Sign up
                 </Link>
               </>
-              
+
             )}
           </div>
         </nav>
@@ -68,6 +77,7 @@ export default function App() {
           <Route path="/my-bookings" element={<MyBookingsPage />} />
           <Route path="*" element={<p>Page not found</p>} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
         </Routes>
       </main>
     </div>

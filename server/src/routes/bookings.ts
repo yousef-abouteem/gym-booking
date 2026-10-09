@@ -105,4 +105,21 @@ router.get("/me/bookings", requireAuth, async (req, res) => {
   res.json({ bookings: result.rows });
 });
 
+// نوادي صاحب النادي الحالي، مع عدد حصصها القادمة
+router.get("/me/gyms", requireAuth, requireRole("gym_owner"), async (req, res) => {
+  const result = await pool.query(
+    `SELECT g.id, g.name, g.slug, g.city, g.description,
+            (SELECT COUNT(*)::int
+             FROM class_sessions s
+             JOIN class_types ct ON ct.id = s.class_type_id
+             WHERE ct.gym_id = g.id AND s.start_time > now()) AS upcoming_sessions
+     FROM gyms g
+     WHERE g.owner_id = $1
+     ORDER BY g.created_at`,
+    [req.user!.id]
+  );
+  res.json({ gyms: result.rows });
+});
+
+
 export default router;

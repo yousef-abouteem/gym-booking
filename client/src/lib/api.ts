@@ -16,8 +16,13 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const res = await fetch(`/api${path}`, { ...options, headers });
   const data = await res.json().catch(() => ({}));
 
-  if (!res.ok) {
-    throw new ApiError(res.status, data.error ?? `Request failed: ${res.status}`);
+   if (!res.ok) {
+    let message = data.error ?? `Request failed: ${res.status}`;
+    // أخطاء zod: نعرض أول حقل فيه مشكلة وسببها
+    const issue = data.details?.[0];
+    if (issue) message = `${issue.path?.join(".") ?? "input"}: ${issue.message}`;
+    throw new ApiError(res.status, message);
   }
+  
   return data as T;
 }
