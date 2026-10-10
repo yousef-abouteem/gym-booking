@@ -4,6 +4,10 @@ A multi-gym class booking platform. Members browse gyms and book spots in classe
 
 Built with React, TypeScript, Node.js, Express and PostgreSQL.
 
+**🔗 Live demo: [gym-booking-livid.vercel.app](https://gym-booking-livid.vercel.app)**
+
+> The API runs on a free Render instance that sleeps after 15 minutes of inactivity, so the first request may take up to a minute. After that it's fast.
+
 ![Gyms list](docs/screenshots/home.png)
 
 ![Gym page with live availability](docs/screenshots/gym.png)
@@ -101,6 +105,18 @@ cd client
 npm install
 npm run dev            # http://localhost:5173
 ```
+
+## Deployment
+
+| Part | Platform | Region |
+|---|---|---|
+| Frontend | Vercel | Edge network |
+| API | Render (Node web service) | Frankfurt |
+| Database | Neon (serverless Postgres) | Frankfurt |
+
+The API and database are in the same region to keep the multi-step booking transaction fast.
+In production, Vercel rewrites `/api/*` to the Render service, so the frontend calls the API on the same origin with no CORS setup.
+
 
 ## API overview
 
