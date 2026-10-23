@@ -1,0 +1,35 @@
+# Refreshes the demo data on the live database every week, so the deployed
+# site always has upcoming classes. The seed script resets all tables.
+name: Weekly demo data refresh
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # Mondays 03:00 UTC (06:00 Istanbul / Doha)
+  workflow_dispatch: # also runnable by hand from the Actions tab
+
+concurrency:
+  group: weekly-seed
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - run: npm ci
+
+      - name: Seed the database
+        run: npm run seed
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
